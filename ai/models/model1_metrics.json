@@ -1,0 +1,50 @@
+{
+  "model": "AIQuake Model 1 (EfficientNet-B0 image classifier)",
+  "evaluated_on": "held-out test split (15 %, seed 42)",
+  "test_images": 2475,
+  "accuracy": 0.8113,
+  "macro_f1": 0.8107,
+  "classes": [
+    "Collapsed",
+    "Damaged",
+    "Intact"
+  ],
+  "per_class": {
+    "Collapsed": {
+      "precision": 0.8543,
+      "recall": 0.7958,
+      "f1": 0.8241,
+      "support": 818
+    },
+    "Damaged": {
+      "precision": 0.7448,
+      "recall": 0.7332,
+      "f1": 0.7389,
+      "support": 832
+    },
+    "Intact": {
+      "precision": 0.8356,
+      "recall": 0.9055,
+      "f1": 0.8691,
+      "support": 825
+    }
+  },
+  "confusion_matrix": [
+    [
+      651,
+      140,
+      27
+    ],
+    [
+      102,
+      610,
+      120
+    ],
+    [
+      9,
+      69,
+      747
+    ]
+  ],
+  "generated_utc": "2026-10-20T07:06:13+00:00"
+}

@@ -98,8 +98,7 @@ def create_access_token(
     data: dict
 ):
 
-    to_encode = data.copy()
-
+    to_encode = data.copy() 
     expire = (
         datetime.utcnow()
         + timedelta(

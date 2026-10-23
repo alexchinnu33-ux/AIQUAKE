@@ -1,0 +1,25 @@
+{
+  "project": "AIQuake",
+  "scenario": "2026 Venezuela earthquake",
+  "area": "Caraballeda",
+  "aoi_bbox": [
+    -66.88,
+    10.595,
+    -66.79,
+    10.635
+  ],
+  "event_date": "2026-06-24",
+  "post_event_scene": "SkySat 20260627_112621_ssc2_u0002",
+  "post_event_resolution": "~0.5 m orthorectified",
+  "post_event_source": "Planet Labs PBC / OpenAerialMap",
+  "post_event_license": "CC BY-NC 4.0",
+  "pre_event_reference": "ESRI World Imagery, as used as the pre-event reference in the HOT MapSwipe Caraballeda project",
+  "damage_data": "HOTOSM fAIr building-level damage assessment",
+  "damage_data_note": "Assessment/candidate data; not a substitute for ground verification.",
+  "sources": [
+    "https://hotosm.org/en/projects/2026-venezuela-earthquake-response/",
+    "https://huggingface.co/datasets/hotosm/venezuela_eq_2026",
+    "https://mapswipe.org/es/projects/01KXFVZTTJ21EYQ5TVHHJRQQYT/"
+  ],
+  "created_utc": "2026-09-21T10:38:56Z"
+}

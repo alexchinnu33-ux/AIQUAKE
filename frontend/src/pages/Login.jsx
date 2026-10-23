@@ -1,838 +1,1665 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function GroundTruthLogin() {
+
+// ============================================================
+// API
+// ============================================================
+
+const API_BASE_URL = "http://127.0.0.1:8000";
+
+
+// ============================================================
+// LOGIN PAGE
+// ============================================================
+
+export default function Login() {
+
   const navigate = useNavigate();
 
-  const [role, setRole] = useState("coordinator");
-  const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+
+  // ----------------------------------------------------------
+  // STATE
+  // ----------------------------------------------------------
 
   const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [clockLine, setClockLine] = useState("00:00:00 UTC · SCAN CYCLE 001");
-  const [coordLine, setCoordLine] = useState("17.3850° N, 78.4867° E");
-  const [syncLine, setSyncLine] = useState("SYNCED 00:00:00");
 
-  const gridRef = useRef(null);
-  const submitBtnRef = useRef(null);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const pad = (n) => n.toString().padStart(2, "0");
+  const [keepSignedIn, setKeepSignedIn] =
+    useState(true);
 
-  // Live UTC clock + coordinate jitter
-  useEffect(() => {
-    const baseLat = 17.385;
-    const baseLng = 78.4867;
+  const [submitting, setSubmitting] =
+    useState(false);
 
-    const tick = () => {
-      const now = new Date();
-      const t = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(
-        now.getUTCSeconds()
-      )} UTC`;
-      setClockLine(`${t} · SCAN CYCLE 001`);
-      setSyncLine(`SYNCED ${t.split(" ")[0]}`);
+  const [error, setError] =
+    useState("");
 
-      const jLat = (baseLat + (Math.random() - 0.5) * 0.002).toFixed(4);
-      const jLng = (baseLng + (Math.random() - 0.5) * 0.002).toFixed(4);
-      setCoordLine(`${jLat}° N, ${jLng}° E`);
-    };
 
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Subtle grid parallax on mouse move (whole page)
-  useEffect(() => {
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    if (reduceMotion) return;
-
-    const handleMove = (e) => {
-      if (!gridRef.current) return;
-      const x = e.clientX / window.innerWidth - 0.5;
-      const y = e.clientY / window.innerHeight - 0.5;
-      gridRef.current.style.transform = `translate(${x * -10}px, ${
-        y * -10
-      }px) scale(1.02)`;
-    };
-    const handleLeave = () => {
-      if (!gridRef.current) return;
-      gridRef.current.style.transform = "translate(0,0) scale(1)";
-    };
-
-    document.addEventListener("mousemove", handleMove);
-    document.addEventListener("mouseleave", handleLeave);
-    return () => {
-      document.removeEventListener("mousemove", handleMove);
-      document.removeEventListener("mouseleave", handleLeave);
-    };
-  }, []);
-
-  const spawnRipple = (e) => {
-    const btn = submitBtnRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    const ripple = document.createElement("span");
-    ripple.className = "gt-ripple";
-    const size = Math.max(rect.width, rect.height);
-    ripple.style.width = ripple.style.height = size + "px";
-    ripple.style.left = e.clientX - rect.left - size / 2 + "px";
-    ripple.style.top = e.clientY - rect.top - size / 2 + "px";
-    btn.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 650);
-  };
+  // ----------------------------------------------------------
+  // LOGIN
+  // ----------------------------------------------------------
 
   const handleSubmit = async (e) => {
+
     e.preventDefault();
 
-    setLoginError("");
+    setError("");
+
+    // Basic validation
+    if (!email.trim()) {
+
+      setError(
+        "Please enter your email address."
+      );
+
+      return;
+    }
+
+
+    if (!password) {
+
+      setError(
+        "Please enter your password."
+      );
+
+      return;
+    }
+
+
     setSubmitting(true);
 
+
     try {
+
+      // ------------------------------------------------------
+      // SEND LOGIN REQUEST
+      // ------------------------------------------------------
+
       const response = await fetch(
-        "http://127.0.0.1:8000/auth/login",
+        `${API_BASE_URL}/auth/login`,
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
+            "Accept": "application/json",
           },
+
           body: JSON.stringify({
-            email: email,
+            email: email.trim(),
             password: password,
           }),
         }
       );
 
-      const data = await response.json();
+
+      // ------------------------------------------------------
+      // READ RESPONSE
+      // ------------------------------------------------------
+
+      let data = {};
+
+      try {
+
+        data = await response.json();
+
+      } catch {
+
+        data = {};
+
+      }
+
+
+      // ------------------------------------------------------
+      // BACKEND ERROR
+      // ------------------------------------------------------
 
       if (!response.ok) {
+
         throw new Error(
-          data.detail || "Invalid email or password"
+          data.detail ||
+          "Invalid email or password."
         );
       }
 
-      if (remember) {
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("userEmail", email);
-        localStorage.setItem("userRole", role);
-      } else {
-        sessionStorage.setItem("token", data.access_token);
-        sessionStorage.setItem("userEmail", email);
-        sessionStorage.setItem("userRole", role);
+
+      // ------------------------------------------------------
+      // CHECK TOKEN
+      // ------------------------------------------------------
+
+      if (!data.access_token) {
+
+        throw new Error(
+          "Authentication succeeded, but no access token was returned."
+        );
       }
 
-      navigate("/dashboard");
-    } catch (error) {
-      console.error("Login error:", error);
 
-      setLoginError(
-        error.message ||
-        "Unable to connect to AIQuake server."
+      // ------------------------------------------------------
+      // SAVE AUTHENTICATION
+      // ------------------------------------------------------
+
+      localStorage.setItem(
+        "token",
+        data.access_token
       );
+
+
+      localStorage.setItem(
+        "userEmail",
+        data.user?.email || email.trim()
+      );
+
+
+      if (data.user?.username) {
+
+        localStorage.setItem(
+          "username",
+          data.user.username
+        );
+
+      }
+
+
+      if (data.user?.id !== undefined) {
+
+        localStorage.setItem(
+          "userId",
+          String(data.user.id)
+        );
+
+      }
+
+
+      if (data.user?.role) {
+
+        localStorage.setItem(
+          "role",
+          data.user.role
+        );
+
+      }
+
+
+      // ------------------------------------------------------
+      // KEEP SIGNED IN
+      // ------------------------------------------------------
+
+      localStorage.setItem(
+        "keepSignedIn",
+        keepSignedIn ? "true" : "false"
+      );
+
+
+      // ------------------------------------------------------
+      // GO TO DASHBOARD
+      // ------------------------------------------------------
+
+      navigate(
+        "/new",
+        {
+          replace: true,
+        }
+      );
+
+
+    } catch (err) {
+
+      console.error(
+        "LOGIN ERROR:",
+        err
+      );
+
+
+      // Network / backend unavailable
+      if (
+        err instanceof TypeError &&
+        err.message.toLowerCase().includes("fetch")
+      ) {
+
+        setError(
+          "Failed to connect to the authentication server."
+        );
+
+      } else {
+
+        setError(
+          err.message ||
+          "Authentication failed."
+        );
+
+      }
+
+
     } finally {
+
       setSubmitting(false);
+
     }
+
   };
 
-  const roles = [
-    { id: "coordinator", label: "RESCUE\nCOORDINATOR" },
-    { id: "analyst", label: "FIELD\nANALYST" },
-    { id: "command", label: "COMMAND\nCENTER" },
-  ];
+
+  // ----------------------------------------------------------
+  // REGISTER
+  // ----------------------------------------------------------
+
+  const handleRegister = () => {
+
+    navigate("/register");
+
+  };
+
+
+  // ----------------------------------------------------------
+  // FORGOT PASSWORD
+  // ----------------------------------------------------------
+
+  const handleForgotPassword = () => {
+
+    setError(
+      "Password recovery is not available yet."
+    );
+
+  };
+
+
+  // ==========================================================
+  // UI
+  // ==========================================================
 
   return (
-    <div className="gt-root">
+
+    <div className="groundtruth-page">
+      <a
+        href="/"
+        style={{
+          position: "fixed", top: 16, left: 16, zIndex: 50, padding: "9px 14px",
+          borderRadius: 9, border: "1px solid rgba(46,230,208,.4)", background: "rgba(4,9,12,.8)",
+          color: "#2ee6d0", textDecoration: "none", fontSize: 12, fontWeight: 700, letterSpacing: ".08em",
+          fontFamily: "'JetBrains Mono', Consolas, monospace",
+        }}
+      >
+        ← HOME
+      </a>
+
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
-        .gt-root{
-          --bg-void:#0A0D12;
-          --panel:#0E1319;
-          --panel-raised:#141B23;
-          --grid-line: rgba(148,187,204,0.09);
-          --grid-line-strong: rgba(148,187,204,0.16);
-          --text-primary:#E9EEF2;
-          --text-muted:#7C8B99;
-          --text-faint:#4C5964;
-          --accent:#3FD7C7;
-          --accent-dim: rgba(63,215,199,0.18);
-          --sev-destroyed:#E5484D;
-          --sev-severe:#F0883E;
-          --sev-moderate:#EAC54F;
-          --sev-minor:#4FBE7A;
-          --font-display:'Space Grotesk', sans-serif;
-          --font-body:'Inter', sans-serif;
-          --font-mono:'JetBrains Mono', monospace;
-
-          position:relative;
-          background:var(--bg-void);
-          color:var(--text-primary);
-          font-family:var(--font-body);
-          min-height:100vh;
-          width:100%;
-          display:grid;
-          grid-template-columns: 1.1fr 1fr;
-          overflow:hidden;
+        * {
+          box-sizing: border-box;
         }
-        .gt-root *{ box-sizing:border-box; }
 
-        /* ============ FULL-PAGE BACKGROUND ============ */
-        .gt-bg-scan{
-          position:fixed;
-          inset:0;
-          z-index:0;
-          overflow:hidden;
+
+        .groundtruth-page {
+
+          min-height: 100vh;
+
+          width: 100%;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          padding: 24px;
+
+          position: relative;
+
+          overflow: hidden;
+
           background:
-            radial-gradient(ellipse at 22% 20%, rgba(63,215,199,0.08), transparent 55%),
-            radial-gradient(ellipse at 88% 30%, rgba(229,72,77,0.05), transparent 50%),
-            radial-gradient(ellipse at 60% 90%, rgba(240,136,62,0.05), transparent 55%),
-            var(--panel);
+            radial-gradient(
+              circle at 15% 30%,
+              rgba(47, 225, 209, 0.07),
+              transparent 28%
+            ),
+            radial-gradient(
+              circle at 85% 65%,
+              rgba(135, 70, 180, 0.08),
+              transparent 30%
+            ),
+            #081012;
+
+          color: #e9f0f2;
+
+          font-family:
+            Inter,
+            ui-sans-serif,
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
         }
-        .gt-grid-layer{
-          position:absolute;
-          inset:-2px;
+
+
+        /* ----------------------------------------------------
+           GRID
+        ---------------------------------------------------- */
+
+        .groundtruth-page::before {
+
+          content: "";
+
+          position: absolute;
+
+          inset: 0;
+
           background-image:
-            linear-gradient(var(--grid-line) 1px, transparent 1px),
-            linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-          background-size: 42px 42px;
-          will-change:transform;
-          transition: transform 0.4s ease-out;
-        }
-        .gt-contour-layer{
-          position:absolute;
-          inset:0;
-          width:100%;
-          height:100%;
-          opacity:0.5;
-          pointer-events:none;
-        }
-        .gt-scanline{
-          position:absolute;
-          top:0; bottom:0;
-          width:220px;
-          left:-220px;
-          background:linear-gradient(90deg, transparent, rgba(63,215,199,0.10) 40%, rgba(63,215,199,0.22) 50%, rgba(63,215,199,0.10) 60%, transparent);
-          animation: gt-sweep 9s linear infinite;
-          mix-blend-mode:screen;
-        }
-        @keyframes gt-sweep{
-          0%{ left:-220px; }
-          100%{ left:100%; }
+            linear-gradient(
+              rgba(75, 220, 211, 0.055) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              90deg,
+              rgba(75, 220, 211, 0.055) 1px,
+              transparent 1px
+            );
+
+          background-size: 45px 45px;
+
+          pointer-events: none;
+
         }
 
-        /* ============ LEFT: SCAN PANEL ============ */
-        .gt-scan-panel{
-          position:relative;
-          z-index:1;
-          overflow:hidden;
-          background:transparent;
-          border-right:1px solid var(--grid-line-strong);
-          display:flex;
-          flex-direction:column;
-          justify-content:space-between;
-          padding:clamp(20px,3vw,44px);
-        }
-        .gt-marker{
-          position:absolute;
-          display:flex;
-          align-items:center;
-          gap:8px;
-          opacity:0;
-          animation: gt-reveal 6.5s ease-in-out infinite;
-        }
-        .gt-marker .gt-dot{
-          width:9px; height:9px; border-radius:50%;
-          animation: gt-ping 2.2s ease-out infinite;
-        }
-        .gt-marker .gt-dot::after{
-          content:'';
-          position:absolute;
-          inset:0;
-          border-radius:50%;
-          background:currentColor;
-        }
-        .gt-marker .gt-tag{
-          font-family:var(--font-mono);
-          font-size:11px;
-          letter-spacing:0.02em;
-          color:var(--text-primary);
-          background:rgba(10,13,18,0.72);
-          border:1px solid var(--grid-line-strong);
-          padding:3px 8px;
-          border-radius:3px;
-          white-space:nowrap;
-          backdrop-filter: blur(2px);
-        }
-        .gt-marker .gt-tag b{ color:inherit; font-weight:500; }
-        @keyframes gt-reveal{
-          0%, 8%{ opacity:0; transform:translateY(4px); }
-          14%, 78%{ opacity:1; transform:translateY(0); }
-          86%, 100%{ opacity:0; transform:translateY(4px); }
-        }
-        @keyframes gt-ping{
-          0%{ box-shadow:0 0 0 0 currentColor; opacity:1; }
-          70%{ box-shadow:0 0 0 10px transparent; opacity:0.4; }
-          100%{ box-shadow:0 0 0 0 transparent; opacity:1; }
-        }
-        .gt-m1{ top:22%; left:18%; color:var(--sev-destroyed); animation-delay:0s; }
-        .gt-m2{ top:58%; left:38%; color:var(--sev-severe); animation-delay:1.6s; }
-        .gt-m3{ top:34%; left:62%; color:var(--sev-moderate); animation-delay:3.2s; }
-        .gt-m4{ top:72%; left:74%; color:var(--sev-minor); animation-delay:4.8s; }
 
-        .gt-readout{
-          position:relative;
-          z-index:2;
-          display:flex;
-          justify-content:space-between;
-          align-items:flex-start;
-          font-family:var(--font-mono);
-          font-size:11.5px;
-          color:var(--text-muted);
-          letter-spacing:0.03em;
-        }
-        .gt-readout .gt-stack{ display:flex; flex-direction:column; gap:5px; }
-        .gt-readout .gt-live{ display:flex; align-items:center; gap:6px; color:var(--accent); }
-        .gt-readout .gt-live .gt-led{
-          width:6px; height:6px; border-radius:50%;
-          background:var(--accent);
-          animation:gt-blink 1.6s ease-in-out infinite;
-        }
-        @keyframes gt-blink{ 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+        .groundtruth-page::after {
 
-        .gt-hero{ position:relative; z-index:2; max-width:520px; }
-        .gt-eyebrow{
-          font-family:var(--font-mono);
-          font-size:11px;
-          letter-spacing:0.14em;
-          color:var(--accent);
-          text-transform:uppercase;
-          margin-bottom:16px;
-          display:flex; align-items:center; gap:10px;
-        }
-        .gt-eyebrow::before{ content:''; width:22px; height:1px; background:var(--accent); }
-        .gt-hero h1{
-          font-family:var(--font-display);
-          font-weight:600;
-          font-size:clamp(28px, 3.2vw, 42px);
-          line-height:1.12;
-          letter-spacing:-0.01em;
-          margin:0 0 16px;
-        }
-        .gt-hero p{
-          color:var(--text-muted);
-          font-size:15px;
-          line-height:1.6;
-          max-width:440px;
-          margin:0;
+          content: "";
+
+          position: absolute;
+
+          width: 900px;
+
+          height: 900px;
+
+          border-radius: 50%;
+
+          border: 1px solid
+            rgba(72, 218, 209, 0.08);
+
+          left: -450px;
+
+          top: 30%;
+
+          pointer-events: none;
+
         }
 
-        .gt-legend{
-          position:relative;
-          z-index:2;
-          display:flex;
-          gap:22px;
-          flex-wrap:wrap;
-          padding-top:18px;
-          border-top:1px solid var(--grid-line-strong);
-        }
-        .gt-legend .gt-item{
-          display:flex; align-items:center; gap:8px;
-          font-family:var(--font-mono);
-          font-size:11px;
-          color:var(--text-muted);
-          letter-spacing:0.02em;
-        }
-        .gt-legend .gt-sw{ width:10px; height:10px; border-radius:2px; }
 
-        /* ============ RIGHT: AUTH PANEL ============ */
-        .gt-auth-panel{
-          position:relative;
-          z-index:1;
-          background:transparent;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          padding: clamp(24px, 4vw, 60px);
-          overflow-y:auto;
-        }
-        .gt-auth-box{
-          width:100%;
-          max-width:480px;
-          background:rgba(14,19,25,0.55);
-          -webkit-backdrop-filter: blur(16px);
-          backdrop-filter: blur(16px);
-          border:1px solid var(--grid-line-strong);
-          border-radius:16px;
-          padding:clamp(24px, 3vw, 36px);
-          box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        /* ----------------------------------------------------
+           CARD
+        ---------------------------------------------------- */
+
+        .login-card {
+
+          width: 100%;
+
+          max-width: 700px;
+
+          min-height: 760px;
+
+          position: relative;
+
+          z-index: 2;
+
+          padding: 34px 48px 28px;
+
+          border-radius: 20px;
+
+          border: 1px solid
+            rgba(113, 145, 158, 0.28);
+
+          background:
+            linear-gradient(
+              145deg,
+              rgba(14, 24, 29, 0.98),
+              rgba(15, 17, 23, 0.98)
+            );
+
+          box-shadow:
+            0 30px 80px
+              rgba(0, 0, 0, 0.42),
+            inset 0 1px 0
+              rgba(255, 255, 255, 0.025);
+
         }
 
-        .gt-brand{ display:flex; align-items:center; gap:12px; margin-bottom:38px; }
-        .gt-brand svg{ flex-shrink:0; }
-        .gt-brand .gt-wordmark{
-          font-family:var(--font-display);
-          font-weight:700;
-          font-size:19px;
-          letter-spacing:0.01em;
-          line-height:1;
-        }
-        .gt-brand .gt-wordmark span{ color:var(--accent); }
-        .gt-brand .gt-sub{
-          font-family:var(--font-mono);
-          font-size:10px;
-          color:var(--text-faint);
-          letter-spacing:0.08em;
-          margin-top:3px;
+
+        /* ----------------------------------------------------
+           BRAND
+        ---------------------------------------------------- */
+
+        .brand {
+
+          display: flex;
+
+          align-items: center;
+
+          gap: 18px;
+
+          margin-bottom: 54px;
+
         }
 
-        .gt-auth-box h2{
-          font-family:var(--font-display);
-          font-weight:600;
-          font-size:24px;
-          margin:0 0 8px;
-        }
-        .gt-auth-box > .gt-lead{
-          color:var(--text-muted);
-          font-size:13.5px;
-          margin:0 0 28px;
-          line-height:1.5;
+
+        .brand-target {
+
+          width: 42px;
+
+          height: 42px;
+
+          border: 2px solid
+            #35ded1;
+
+          border-radius: 50%;
+
+          position: relative;
+
+          flex-shrink: 0;
+
+          box-shadow:
+            0 0 18px
+              rgba(53, 222, 209, 0.18);
+
         }
 
-        .gt-roles{ display:flex; gap:8px; margin-bottom:24px; }
-        .gt-role-chip{
-          flex:1;
-          background:var(--panel-raised);
-          border:1px solid var(--grid-line-strong);
-          color:var(--text-muted);
-          font-family:var(--font-mono);
-          font-size:10.5px;
-          letter-spacing:0.03em;
-          padding:9px 6px;
-          border-radius:6px;
-          cursor:pointer;
-          text-align:center;
-          white-space:pre-line;
-          transition: all 0.15s ease;
-        }
-        .gt-role-chip:hover{ border-color:var(--text-muted); color:var(--text-primary); }
-        .gt-role-chip[aria-pressed="true"]{
-          border-color:var(--accent);
-          color:var(--accent);
-          background:var(--accent-dim);
-          box-shadow: inset 0 0 0 1px var(--accent);
+
+        .brand-target::before {
+
+          content: "";
+
+          position: absolute;
+
+          width: 12px;
+
+          height: 12px;
+
+          border: 2px solid
+            #35ded1;
+
+          border-radius: 50%;
+
+          left: 50%;
+
+          top: 50%;
+
+          transform: translate(
+            -50%,
+            -50%
+          );
+
         }
 
-        .gt-auth-box form{ display:flex; flex-direction:column; gap:18px; }
-        .gt-field{ position:relative; }
-        .gt-field label{
-          display:block;
-          font-family:var(--font-mono);
-          font-size:10.5px;
-          letter-spacing:0.06em;
-          text-transform:uppercase;
-          color:var(--text-faint);
-          margin-bottom:8px;
-        }
-        .gt-field .gt-input-wrap{ position:relative; }
-        .gt-field input{
-          width:100%;
-          background:var(--panel-raised);
-          border:1px solid var(--grid-line-strong);
-          color:var(--text-primary);
-          font-family:var(--font-body);
-          font-size:14px;
-          padding:12px 14px;
-          border-radius:6px;
-          outline:none;
-          transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .gt-field input::placeholder{ color:var(--text-faint); }
-        .gt-field input:focus{
-          border-color:var(--accent);
-          box-shadow:0 0 0 3px var(--accent-dim);
-        }
-        .gt-scan-underline{
-          position:absolute;
-          bottom:-1px; left:0;
-          height:1.5px;
-          width:0%;
-          background:var(--accent);
-          transition:width 0.3s ease;
-        }
-        .gt-field input:focus ~ .gt-scan-underline{ width:100%; }
 
-        .gt-toggle-vis{
-          position:absolute;
-          right:10px; top:50%;
-          transform:translateY(-50%);
-          background:none; border:none;
-          color:var(--text-faint);
-          cursor:pointer;
-          padding:4px;
-          display:flex;
-          transition:color 0.15s ease;
-        }
-        .gt-toggle-vis:hover{ color:var(--accent); }
+        .brand-target::after {
 
-        .gt-row-between{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; }
-        .gt-remember{ display:flex; align-items:center; gap:7px; color:var(--text-muted); cursor:pointer; user-select:none; }
-        .gt-remember input{ accent-color:var(--accent); width:13px; height:13px; }
-        .gt-row-between a{
-          color:var(--text-muted);
-          text-decoration:none;
-          border-bottom:1px solid transparent;
-          transition: color 0.15s ease, border-color 0.15s ease;
-        }
-        .gt-row-between a:hover{ color:var(--accent); border-color:var(--accent); }
+          content: "";
 
-        .gt-submit{
-          position:relative;
-          overflow:hidden;
-          margin-top:6px;
-          background:var(--accent);
-          color:#062622;
-          font-family:var(--font-display);
-          font-weight:600;
-          font-size:14px;
-          letter-spacing:0.01em;
-          border:none;
-          padding:13px;
-          border-radius:6px;
-          cursor:pointer;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          gap:8px;
-          transition: filter 0.15s ease, transform 0.15s ease;
-        }
-        .gt-submit:hover{ filter:brightness(1.08); }
-        .gt-submit:active{ transform:scale(0.98); }
-        .gt-submit:disabled{ cursor:default; }
-        .gt-ripple{
-          position:absolute;
-          border-radius:50%;
-          background:rgba(6,38,34,0.35);
-          transform:scale(0);
-          animation:gt-ripple-anim 0.6s ease-out;
-          pointer-events:none;
-        }
-        @keyframes gt-ripple-anim{ to{ transform:scale(3.2); opacity:0; } }
+          position: absolute;
 
-        .gt-status-footer{
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          padding-top:18px;
-          margin-top:22px;
-          border-top:1px solid var(--grid-line-strong);
-          font-family:var(--font-mono);
-          font-size:10.5px;
-          color:var(--text-faint);
-        }
-        .gt-status-footer .gt-ok{ display:flex; align-items:center; gap:6px; color:var(--sev-minor); }
-        .gt-status-footer .gt-ok .gt-led{
-          width:5px; height:5px; border-radius:50%; background:var(--sev-minor);
-          animation:gt-blink 1.8s ease-in-out infinite;
+          width: 5px;
+
+          height: 5px;
+
+          border-radius: 50%;
+
+          background: #35ded1;
+
+          left: 50%;
+
+          top: 50%;
+
+          transform: translate(
+            -50%,
+            -50%
+          );
+
+          box-shadow:
+            0 -27px 0 -1px #35ded1,
+            0 27px 0 -1px #35ded1,
+            27px 0 0 -1px #35ded1,
+            -27px 0 0 -1px #35ded1;
+
         }
 
-        .gt-request-access{ text-align:center; margin-top:22px; font-size:13px; color:var(--text-muted); }
-        .gt-request-access a{ color:var(--accent); text-decoration:none; }
-        .gt-request-access a:hover{ text-decoration:underline; }
 
-        @media (max-width: 900px){
-          .gt-root{ grid-template-columns: 1fr; grid-template-rows: 34vh 1fr; }
-          .gt-scan-panel{ border-right:none; border-bottom:1px solid var(--grid-line-strong); padding:20px; }
-          .gt-hero p{ display:none; }
-          .gt-hero h1{ font-size:22px; }
-          .gt-legend{ display:none; }
-          .gt-readout .gt-stack:last-child{ display:none; }
-          .gt-auth-panel{ padding:24px 16px; }
-          .gt-auth-box{ padding:22px; }
+        .brand-name {
+
+          margin: 0;
+
+          font-size: 25px;
+
+          line-height: 1;
+
+          font-weight: 800;
+
+          letter-spacing: -0.5px;
+
         }
 
-        @media (prefers-reduced-motion: reduce){
-          .gt-scanline, .gt-marker, .gt-marker .gt-dot, .gt-readout .gt-live .gt-led, .gt-status-footer .gt-led{ animation:none !important; }
-          .gt-marker{ opacity:1; }
+
+        .brand-ground {
+
+          color: #e8eef0;
+
         }
+
+
+        .brand-truth {
+
+          color: #36ded1;
+
+        }
+
+
+        .brand-subtitle {
+
+          margin-top: 10px;
+
+          color: #536875;
+
+          font-size: 12px;
+
+          letter-spacing: 2px;
+
+          font-family:
+            "Courier New",
+            monospace;
+
+        }
+
+
+        /* ----------------------------------------------------
+           HEADER
+        ---------------------------------------------------- */
+
+        .login-header {
+
+          text-align: center;
+
+          margin-bottom: 38px;
+
+        }
+
+
+        .login-title {
+
+          margin: 0;
+
+          font-size: 32px;
+
+          line-height: 1.15;
+
+          font-weight: 750;
+
+          letter-spacing: -0.8px;
+
+        }
+
+
+        .login-description {
+
+          margin: 12px auto 0;
+
+          max-width: 560px;
+
+          color: #8394a2;
+
+          font-size: 17px;
+
+          line-height: 1.5;
+
+        }
+
+
+        /* ----------------------------------------------------
+           ROLE SELECTOR
+        ---------------------------------------------------- */
+
+        .role-selector {
+
+          display: grid;
+
+          grid-template-columns:
+            repeat(3, 1fr);
+
+          gap: 10px;
+
+          margin-bottom: 30px;
+
+        }
+
+
+        .role-button {
+
+          min-height: 58px;
+
+          border-radius: 8px;
+
+          border: 1px solid
+            #2b3a46;
+
+          background: #111a21;
+
+          color: #71808e;
+
+          font-family:
+            "Courier New",
+            monospace;
+
+          font-size: 12px;
+
+          font-weight: 700;
+
+          letter-spacing: 1px;
+
+          cursor: pointer;
+
+          transition:
+            border-color 0.2s,
+            background 0.2s,
+            color 0.2s;
+
+        }
+
+
+        .role-button:hover {
+
+          border-color: #35ded1;
+
+          color: #a9b8c2;
+
+        }
+
+
+        .role-button.active {
+
+          border: 2px solid #35ded1;
+
+          background:
+            rgba(53, 222, 209, 0.10);
+
+          color: #35ded1;
+
+        }
+
+
+        /* ----------------------------------------------------
+           ERROR
+        ---------------------------------------------------- */
+
+        .error-box {
+
+          min-height: 48px;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          padding: 12px 16px;
+
+          margin-bottom: 28px;
+
+          border: 1px solid
+            rgba(255, 67, 78, 0.7);
+
+          border-radius: 7px;
+
+          background:
+            rgba(111, 22, 31, 0.16);
+
+          color: #ff5058;
+
+          font-family:
+            "Courier New",
+            monospace;
+
+          font-size: 13px;
+
+          text-align: center;
+
+          letter-spacing: 0.4px;
+
+        }
+
+
+        /* ----------------------------------------------------
+           FORM
+        ---------------------------------------------------- */
+
+        .login-form {
+
+          width: 100%;
+
+        }
+
+
+        .field {
+
+          margin-bottom: 27px;
+
+        }
+
+
+        .field-label {
+
+          display: block;
+
+          margin-bottom: 14px;
+
+          text-align: center;
+
+          color: #596a77;
+
+          font-family:
+            "Courier New",
+            monospace;
+
+          font-size: 12px;
+
+          letter-spacing: 2px;
+
+        }
+
+
+        .input-wrapper {
+
+          position: relative;
+
+        }
+
+
+        .field-input {
+
+          width: 100%;
+
+          height: 54px;
+
+          padding: 0 17px;
+
+          border-radius: 7px;
+
+          border: 1px solid
+            #3a4b61;
+
+          outline: none;
+
+          background: #273346;
+
+          color: #edf2f5;
+
+          font-size: 17px;
+
+          transition:
+            border-color 0.2s,
+            box-shadow 0.2s;
+
+        }
+
+
+        .field-input::placeholder {
+
+          color: #738190;
+
+        }
+
+
+        .field-input:focus {
+
+          border-color: #35ded1;
+
+          box-shadow:
+            0 0 0 3px
+              rgba(53, 222, 209, 0.08);
+
+        }
+
+
+        .password-input {
+
+          padding-right: 55px;
+
+        }
+
+
+        .password-toggle {
+
+          position: absolute;
+
+          right: 12px;
+
+          top: 50%;
+
+          transform: translateY(-50%);
+
+          width: 36px;
+
+          height: 36px;
+
+          border: 0;
+
+          background: transparent;
+
+          color: #617181;
+
+          cursor: pointer;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+        }
+
+
+        .password-toggle:hover {
+
+          color: #35ded1;
+
+        }
+
+
+        /* ----------------------------------------------------
+           OPTIONS
+        ---------------------------------------------------- */
+
+        .form-options {
+
+          display: flex;
+
+          justify-content: space-between;
+
+          align-items: center;
+
+          margin-top: -3px;
+
+          margin-bottom: 31px;
+
+          color: #80909e;
+
+          font-size: 16px;
+
+        }
+
+
+        .remember {
+
+          display: flex;
+
+          align-items: center;
+
+          gap: 12px;
+
+          cursor: pointer;
+
+        }
+
+
+        .remember input {
+
+          appearance: none;
+
+          width: 16px;
+
+          height: 16px;
+
+          margin: 0;
+
+          border-radius: 3px;
+
+          border: 1px solid #536778;
+
+          background: #1b2630;
+
+          cursor: pointer;
+
+          position: relative;
+
+        }
+
+
+        .remember input:checked {
+
+          background: #35ded1;
+
+          border-color: #35ded1;
+
+        }
+
+
+        .remember input:checked::after {
+
+          content: "";
+
+          position: absolute;
+
+          width: 4px;
+
+          height: 8px;
+
+          border-right: 2px solid #06201f;
+
+          border-bottom: 2px solid #06201f;
+
+          transform:
+            rotate(45deg);
+
+          left: 5px;
+
+          top: 2px;
+
+        }
+
+
+        .forgot-button {
+
+          border: 0;
+
+          background: transparent;
+
+          color: #80909e;
+
+          font-size: 16px;
+
+          cursor: pointer;
+
+        }
+
+
+        .forgot-button:hover {
+
+          color: #35ded1;
+
+        }
+
+
+        /* ----------------------------------------------------
+           SUBMIT
+        ---------------------------------------------------- */
+
+        .submit-button {
+
+          width: 100%;
+
+          height: 56px;
+
+          border: 0;
+
+          border-radius: 7px;
+
+          background: #3cdbd0;
+
+          color: #06201f;
+
+          font-size: 17px;
+
+          font-weight: 700;
+
+          cursor: pointer;
+
+          display: flex;
+
+          align-items: center;
+
+          justify-content: center;
+
+          gap: 12px;
+
+          transition:
+            transform 0.15s,
+            background 0.2s,
+            opacity 0.2s;
+
+        }
+
+
+        .submit-button:hover {
+
+          background: #51e4d9;
+
+          transform:
+            translateY(-1px);
+
+        }
+
+
+        .submit-button:active {
+
+          transform:
+            translateY(0);
+
+        }
+
+
+        .submit-button:disabled {
+
+          opacity: 0.65;
+
+          cursor: not-allowed;
+
+          transform: none;
+
+        }
+
+
+        .arrow {
+
+          font-size: 25px;
+
+          line-height: 0;
+
+          font-weight: 400;
+
+        }
+
+
+        .spinner {
+
+          width: 18px;
+
+          height: 18px;
+
+          border-radius: 50%;
+
+          border: 2px solid
+            rgba(6, 32, 31, 0.25);
+
+          border-top-color: #06201f;
+
+          animation:
+            spin 0.7s linear infinite;
+
+        }
+
+
+        @keyframes spin {
+
+          to {
+
+            transform:
+              rotate(360deg);
+
+          }
+
+        }
+
+
+        /* ----------------------------------------------------
+           FOOTER
+        ---------------------------------------------------- */
+
+        .login-footer {
+
+          margin-top: 27px;
+
+          padding-top: 27px;
+
+          border-top: 1px solid
+            rgba(86, 106, 119, 0.25);
+
+        }
+
+
+        .system-status {
+
+          display: flex;
+
+          justify-content: space-between;
+
+          align-items: center;
+
+          margin-bottom: 37px;
+
+          font-family:
+            "Courier New",
+            monospace;
+
+          font-size: 12px;
+
+          letter-spacing: 1px;
+
+        }
+
+
+        .status {
+
+          display: flex;
+
+          align-items: center;
+
+          gap: 9px;
+
+          color: #49c879;
+
+        }
+
+
+        .status-dot {
+
+          width: 6px;
+
+          height: 6px;
+
+          border-radius: 50%;
+
+          background: #49c879;
+
+          box-shadow:
+            0 0 8px
+              rgba(73, 200, 121, 0.5);
+
+        }
+
+
+        .sync {
+
+          color: #53616d;
+
+        }
+
+
+        .register-text {
+
+          text-align: center;
+
+          color: #8393a0;
+
+          font-size: 17px;
+
+        }
+
+
+        .register-button {
+
+          border: 0;
+
+          background: transparent;
+
+          padding: 0;
+
+          color: #35ded1;
+
+          font-size: inherit;
+
+          cursor: pointer;
+
+        }
+
+
+        .register-button:hover {
+
+          text-decoration: underline;
+
+        }
+
+
+        /* ----------------------------------------------------
+           MOBILE
+        ---------------------------------------------------- */
+
+        @media (max-width: 700px) {
+
+          .groundtruth-page {
+
+            padding: 12px;
+
+          }
+
+
+          .login-card {
+
+            min-height: auto;
+
+            padding:
+              28px 22px 24px;
+
+          }
+
+
+          .brand {
+
+            margin-bottom: 40px;
+
+          }
+
+
+          .login-title {
+
+            font-size: 27px;
+
+          }
+
+
+          .login-description {
+
+            font-size: 15px;
+
+          }
+
+
+          .role-selector {
+
+            grid-template-columns:
+              1fr;
+
+          }
+
+
+          .role-button {
+
+            min-height: 50px;
+
+          }
+
+
+          .form-options {
+
+            font-size: 14px;
+
+          }
+
+
+          .forgot-button {
+
+            font-size: 14px;
+
+          }
+
+        }
+
       `}</style>
 
-      {/* Shared full-page background */}
-      <div className="gt-bg-scan">
-        <div className="gt-grid-layer" ref={gridRef} />
-        <div className="gt-scanline" />
-        <svg
-          className="gt-contour-layer"
-          viewBox="0 0 1400 900"
-          preserveAspectRatio="none"
-          xmlns="http://www.w3.org/2000/svg"
+
+      <div className="login-card">
+
+
+        {/* ====================================================
+            BRAND
+        ==================================================== */}
+
+        <div className="brand">
+
+          <div className="brand-target" />
+
+          <div>
+
+            <div className="brand-name">
+
+              <span className="brand-ground">
+                GROUND
+              </span>
+
+              <span className="brand-truth">
+                TRUTH
+              </span>
+
+            </div>
+
+            <div className="brand-subtitle">
+
+              DAMAGE ASSESSMENT &amp; RESCUE ROUTING
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* ====================================================
+            HEADER
+        ==================================================== */}
+
+        <div className="login-header">
+
+          <h1 className="login-title">
+            Sign in to your console
+          </h1>
+
+          <p className="login-description">
+            Authenticate to view live sector scans,
+            damage grades, and rescue routing for your
+            assigned region.
+          </p>
+
+        </div>
+
+
+        {/* ====================================================
+            ROLE BUTTONS
+        ==================================================== */}
+
+        <div className="role-selector">
+
+          <button
+            type="button"
+            className="role-button active"
+          >
+            RESCUE
+            <br />
+            COORDINATOR
+          </button>
+
+
+          <button
+            type="button"
+            className="role-button"
+          >
+            FIELD
+            <br />
+            ANALYST
+          </button>
+
+
+          <button
+            type="button"
+            className="role-button"
+          >
+            COMMAND
+            <br />
+            CENTER
+          </button>
+
+        </div>
+
+
+        {/* ====================================================
+            ERROR
+        ==================================================== */}
+
+        {error && (
+
+          <div className="error-box">
+
+            AUTHENTICATION FAILED — {error}
+
+          </div>
+
+        )}
+
+
+        {/* ====================================================
+            FORM
+        ==================================================== */}
+
+        <form
+          className="login-form"
+          onSubmit={handleSubmit}
         >
-          <path
-            d="M-20,180 C250,120 500,240 800,160 C1050,100 1300,200 1420,150"
-            stroke="rgba(148,187,204,0.14)"
-            strokeWidth="1"
-            fill="none"
-          />
-          <path
-            d="M-20,280 C280,220 540,340 850,260 C1080,200 1300,300 1420,250"
-            stroke="rgba(148,187,204,0.10)"
-            strokeWidth="1"
-            fill="none"
-          />
-          <path
-            d="M-20,600 C260,540 560,660 880,580 C1100,520 1320,610 1420,570"
-            stroke="rgba(148,187,204,0.10)"
-            strokeWidth="1"
-            fill="none"
-          />
-          <path
-            d="M-20,700 C300,650 590,760 920,690 C1120,640 1330,720 1420,680"
-            stroke="rgba(148,187,204,0.14)"
-            strokeWidth="1"
-            fill="none"
-          />
-        </svg>
-      </div>
 
-      {/* Left: scan panel */}
-      <section className="gt-scan-panel">
-        <div className="gt-marker gt-m1">
-          <span className="gt-dot" />
-          <span className="gt-tag">
-            SECTOR 14-B — <b>DESTROYED · 71%</b>
-          </span>
-        </div>
-        <div className="gt-marker gt-m2">
-          <span className="gt-dot" />
-          <span className="gt-tag">
-            SECTOR 09-A — <b>SEVERE · 44%</b>
-          </span>
-        </div>
-        <div className="gt-marker gt-m3">
-          <span className="gt-dot" />
-          <span className="gt-tag">
-            SECTOR 22-C — <b>MODERATE · 26%</b>
-          </span>
-        </div>
-        <div className="gt-marker gt-m4">
-          <span className="gt-dot" />
-          <span className="gt-tag">
-            SECTOR 03-D — <b>MINOR · 8%</b>
-          </span>
-        </div>
 
-        <div className="gt-readout">
-          <div className="gt-stack">
-            <div className="gt-live">
-              <span className="gt-led" /> LIVE FEED — DRONE + SAT FUSION
-            </div>
-            <div>{clockLine}</div>
-          </div>
-          <div className="gt-stack" style={{ textAlign: "right" }}>
-            <div>{coordLine}</div>
-            <div>RES 0.3M/PX · CLOUD 4%</div>
-          </div>
-        </div>
+          {/* EMAIL */}
 
-        <div className="gt-hero">
-          <div className="gt-eyebrow">Rapid Damage Assessment</div>
-          <h1>See the damage before the dust settles.</h1>
-          <p>
-            GroundTruth fuses satellite passes with drone sweeps to grade
-            structural damage block by block, then routes rescue teams to
-            the worst-hit sectors and the nearest open hospitals — while
-            conditions are still changing.
-          </p>
-        </div>
+          <div className="field">
 
-        <div className="gt-legend">
-          <div className="gt-item">
-            <span className="gt-sw" style={{ background: "var(--sev-destroyed)" }} />
-            Destroyed
-          </div>
-          <div className="gt-item">
-            <span className="gt-sw" style={{ background: "var(--sev-severe)" }} />
-            Severe
-          </div>
-          <div className="gt-item">
-            <span className="gt-sw" style={{ background: "var(--sev-moderate)" }} />
-            Moderate
-          </div>
-          <div className="gt-item">
-            <span className="gt-sw" style={{ background: "var(--sev-minor)" }} />
-            Minor
-          </div>
-        </div>
-      </section>
-
-      {/* Right: auth panel */}
-      <section className="gt-auth-panel">
-        <div className="gt-auth-box">
-          <div className="gt-brand">
-            <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-              <circle cx="17" cy="17" r="15.5" stroke="#3FD7C7" strokeWidth="1.2" opacity="0.5" />
-              <circle cx="17" cy="17" r="9.5" stroke="#3FD7C7" strokeWidth="1.2" opacity="0.8" />
-              <line x1="17" y1="0" x2="17" y2="7" stroke="#3FD7C7" strokeWidth="1.4" />
-              <line x1="17" y1="27" x2="17" y2="34" stroke="#3FD7C7" strokeWidth="1.4" />
-              <line x1="0" y1="17" x2="7" y2="17" stroke="#3FD7C7" strokeWidth="1.4" />
-              <line x1="27" y1="17" x2="34" y2="17" stroke="#3FD7C7" strokeWidth="1.4" />
-              <circle cx="17" cy="17" r="2.4" fill="#3FD7C7" />
-            </svg>
-            <div>
-              <div className="gt-wordmark">
-                GROUND<span>TRUTH</span>
-              </div>
-              <div className="gt-sub">DAMAGE ASSESSMENT &amp; RESCUE ROUTING</div>
-            </div>
-          </div>
-
-          <h2>Sign in to your console</h2>
-          <p className="gt-lead">
-            Authenticate to view live sector scans, damage grades, and
-            rescue routing for your assigned region.
-          </p>
-
-          <div className="gt-roles" role="group" aria-label="Sign in as">
-            {roles.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                className="gt-role-chip"
-                aria-pressed={role === r.id}
-                onClick={() => setRole(r.id)}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-
-          {loginError && (
-            <div
-              style={{
-                marginBottom: "18px",
-                padding: "10px 12px",
-                border: "1px solid rgba(229,72,77,0.5)",
-                background: "rgba(229,72,77,0.08)",
-                color: "#E5484D",
-                borderRadius: "6px",
-                fontFamily: "var(--font-mono)",
-                fontSize: "11px",
-                lineHeight: "1.5",
-              }}
+            <label
+              className="field-label"
+              htmlFor="email"
             >
-              AUTHENTICATION FAILED — {loginError}
-            </div>
-          )}
+              ACCESS ID
+            </label>
 
-          <form onSubmit={handleSubmit}>
-            <div className="gt-field">
-              <label htmlFor="gt-accessId">Access ID</label>
-              <div className="gt-input-wrap">
-                <input
-                  type="email"
-                  id="gt-accessId"
-                  placeholder="you@agency.gov"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setLoginError("");
-                  }}
-                  required
-                />
-                <div className="gt-scan-underline" />
-              </div>
-            </div>
 
-            <div className="gt-field">
-              <label htmlFor="gt-password">Password</label>
-              <div className="gt-input-wrap">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  id="gt-password"
-                  placeholder="••••••••••"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setLoginError("");
-                  }}
-                  required
-                />
-                <button
-                  type="button"
-                  className="gt-toggle-vis"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  onClick={() => setShowPassword((s) => !s)}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                    <circle cx="12" cy="12" r="3" />
+            <input
+              id="email"
+              name="email"
+              type="email"
+              className="field-input"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError("");
+              }}
+              autoComplete="email"
+              disabled={submitting}
+            />
+
+          </div>
+
+
+          {/* PASSWORD */}
+
+          <div className="field">
+
+            <label
+              className="field-label"
+              htmlFor="password"
+            >
+              PASSWORD
+            </label>
+
+
+            <div className="input-wrapper">
+
+              <input
+                id="password"
+                name="password"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                className="field-input password-input"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError("");
+                }}
+                autoComplete="current-password"
+                disabled={submitting}
+              />
+
+
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() =>
+                  setShowPassword(
+                    !showPassword
+                  )
+                }
+                aria-label={
+                  showPassword
+                    ? "Hide password"
+                    : "Show password"
+                }
+              >
+
+                {showPassword ? (
+
+                  <svg
+                    width="21"
+                    height="21"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+
+                    <path
+                      d="M3 3l18 18"
+                    />
+
+                    <path
+                      d="M10.6 10.6a2 2 0 0 0 2.8 2.8"
+                    />
+
+                    <path
+                      d="M9.9 4.2A10.8 10.8 0 0 1 12 4c5 0 8.5 4 10 8-0.6 1.7-1.6 3.2-2.9 4.4"
+                    />
+
+                    <path
+                      d="M6.6 6.6C4.9 7.7 3.6 9.4 2 12c1.5 4 5 8 10 8 1.6 0 3-.4 4.3-1.1"
+                    />
+
                   </svg>
-                </button>
-                <div className="gt-scan-underline" />
-              </div>
+
+                ) : (
+
+                  <svg
+                    width="21"
+                    height="21"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+
+                    <path
+                      d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
+                    />
+
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="3"
+                    />
+
+                  </svg>
+
+                )}
+
+              </button>
+
             </div>
 
-            <div className="gt-row-between">
-              <label className="gt-remember">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                />
+          </div>
+
+
+          {/* OPTIONS */}
+
+          <div className="form-options">
+
+            <label className="remember">
+
+              <input
+                type="checkbox"
+                checked={keepSignedIn}
+                onChange={(e) =>
+                  setKeepSignedIn(
+                    e.target.checked
+                  )
+                }
+                disabled={submitting}
+              />
+
+              <span>
                 Keep me signed in
-              </label>
-              <a href="#forgot" onClick={(e) => e.preventDefault()}>
-                Forgot access?
-              </a>
-            </div>
+              </span>
+
+            </label>
+
 
             <button
-              type="submit"
-              className="gt-submit"
-              ref={submitBtnRef}
-              onClick={spawnRipple}
+              type="button"
+              className="forgot-button"
+              onClick={
+                handleForgotPassword
+              }
               disabled={submitting}
             >
-              {submitting ? (
-                "Verifying credentials…"
-              ) : (
-                <>
-                  Authenticate
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <path d="M5 12h14M13 5l7 7-7 7" />
-                  </svg>
-                </>
-              )}
+              Forgot access?
             </button>
-          </form>
 
-          <div className="gt-status-footer">
-            <div className="gt-ok">
-              <span className="gt-led" />
-              ALL FEEDS NOMINAL
-            </div>
-            <div>{syncLine}</div>
           </div>
 
-          <div className="gt-request-access">
+
+          {/* SUBMIT */}
+
+          <button
+            type="submit"
+            className="submit-button"
+            disabled={submitting}
+          >
+
+            {submitting ? (
+
+              <>
+                <span className="spinner" />
+
+                Authenticating...
+              </>
+
+            ) : (
+
+              <>
+                Authenticate
+
+                <span className="arrow">
+                  →
+                </span>
+              </>
+
+            )}
+
+          </button>
+
+        </form>
+
+
+        {/* ====================================================
+            FOOTER
+        ==================================================== */}
+
+        <div className="login-footer">
+
+
+          <div className="system-status">
+
+            <div className="status">
+
+              <span className="status-dot" />
+
+              ALL FEEDS NOMINAL
+
+            </div>
+
+
+            <div className="sync">
+
+              SYNCED
+
+            </div>
+
+          </div>
+
+
+          <div className="register-text">
+
             New response team?{" "}
-            <a
-              href="/register"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate("/register");
-              }}
+
+            <button
+              type="button"
+              className="register-button"
+              onClick={handleRegister}
             >
               Request access →
-            </a>
+            </button>
+
           </div>
+
         </div>
-      </section>
+
+
+      </div>
+
     </div>
+
   );
+
 }
