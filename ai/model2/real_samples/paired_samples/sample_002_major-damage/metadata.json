@@ -1,0 +1,11 @@
+{
+  "sample": 2,
+  "damage_class_from_HOTOSM": "major-damage",
+  "longitude": -66.8567960200327,
+  "latitude": 10.618027805316768,
+  "zoom": 18,
+  "source": "HOTOSM Caraballeda damage polygon centroid",
+  "pre_source": "ESRI World Imagery reference",
+  "post_source": "OpenAerialMap / Planet SkySat",
+  "warning": "Pre and post sources are geographically matched reference imagery, not guaranteed pixel-perfect co-registration."
+}

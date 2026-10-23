@@ -168,6 +168,17 @@ export default function GroundTruthRegister() {
 
   return (
     <div className="gt-root">
+      <a
+        href="/"
+        style={{
+          position: "fixed", top: 16, left: 16, zIndex: 50, padding: "9px 14px",
+          borderRadius: 9, border: "1px solid rgba(46,230,208,.4)", background: "rgba(4,9,12,.8)",
+          color: "#2ee6d0", textDecoration: "none", fontSize: 12, fontWeight: 700, letterSpacing: ".08em",
+          fontFamily: "'JetBrains Mono', Consolas, monospace",
+        }}
+      >
+        ← HOME
+      </a>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 

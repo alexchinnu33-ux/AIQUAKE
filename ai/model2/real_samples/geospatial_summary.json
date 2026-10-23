@@ -1,0 +1,62 @@
+{
+  "project": "AIQuake",
+  "area": "Caraballeda",
+  "damage_data": {
+    "file": "C:\\Users\\JACOB ALEX\\OneDrive\\Desktop\\AIQuake\\ai\\model2\\real_samples\\damage_assessment\\caraballeda_damage_polygons.geojson",
+    "feature_count": 5366,
+    "bbox": [
+      -66.87982999564822,
+      10.595563569061017,
+      -66.8140825476105,
+      10.620623061257923
+    ],
+    "property_fields": [
+      "city",
+      "class",
+      "confidence",
+      "damage",
+      "damage_class",
+      "disaster",
+      "id",
+      "p_destroyed",
+      "p_major_damage",
+      "p_minor_damage",
+      "p_no_damage",
+      "review",
+      "score",
+      "sources"
+    ],
+    "damage_field": "damage",
+    "damage_counts": {
+      "minor-damage": 311,
+      "no-damage": 4932,
+      "major-damage": 64,
+      "destroyed": 59
+    }
+  },
+  "building_data": {
+    "file": "C:\\Users\\JACOB ALEX\\OneDrive\\Desktop\\AIQuake\\ai\\model2\\real_samples\\buildings\\caraballeda_buildings_polygons.geojson",
+    "feature_count": 5366,
+    "bbox": [
+      -66.87982999564822,
+      10.595563569061017,
+      -66.8140825476105,
+      10.620623061257923
+    ],
+    "property_fields": [
+      "class",
+      "id",
+      "score"
+    ]
+  },
+  "geospatial_relationship": {
+    "coordinate_system": "GeoJSON geographic coordinates",
+    "bbox_format": [
+      "min_longitude",
+      "min_latitude",
+      "max_longitude",
+      "max_latitude"
+    ],
+    "note": "Bounds were calculated directly from the feature geometries. They are not inferred from image dimensions."
+  }
+}

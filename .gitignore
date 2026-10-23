@@ -39,3 +39,16 @@ backend/uploads/
 # OS
 .DS_Store
 Thumbs.db
+# runtime data
+backend/data/field_reports.json
+backend/data/osm_cache/
+
+# Model 2 weights are 1.3 GB (over GitHub's 100 MB limit) - download separately, see README
+ai/models/building_damage/model.onnx
+
+# tool caches
+.cache/
+backend/data/shake_cache/
+
+# raw Esri tile cache (regenerable with ai/model2/build_real_earthquake_samples.py; check Esri terms before redistributing)
+ai/model2/real_samples/tiles/

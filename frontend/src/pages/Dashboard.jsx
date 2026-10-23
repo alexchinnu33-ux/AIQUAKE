@@ -2,6 +2,8 @@
 import NavigationBar from "./NavigationBar";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import Model2Analysis from "./Model2Analysis";
+import RealIncidentData from "./RealIncidentData";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -847,6 +849,25 @@ function Dashboard() {
                   <div className="result-note">
                     MODEL STATUS · VERIFIED
                   </div>
+                 {prediction && (
+  <button
+    type="button"
+    className="incident-map-button"
+    onClick={() => navigate("/gis")}
+  >
+    VIEW INCIDENT DAMAGE MAP
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  </button>
+)}
 
                 </div>
 
@@ -875,6 +896,11 @@ function Dashboard() {
 
           </div>
 
+
+          {/* MODEL 2 — FINE-GRAINED DAMAGE ANALYSIS */}
+
+          <Model2Analysis />
+            
 
           {/* ANALYZE BUTTON */}
 
@@ -930,7 +956,7 @@ function Dashboard() {
 
               <div>
                 <div className="card-kicker">
-                  03 / OPERATIONS LOG
+                  04 / OPERATIONS LOG
                 </div>
 
                 <h3>
@@ -1105,6 +1131,31 @@ function Dashboard() {
 
 
       <style>{`
+      .incident-map-button {
+  width: 100%;
+  margin-top: 18px;
+  padding: 11px 13px;
+  border: 1px solid rgba(63, 215, 199, 0.45);
+  border-radius: 4px;
+  background: rgba(63, 215, 199, 0.08);
+  color: #3fd7c7;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.incident-map-button:hover {
+  background: rgba(63, 215, 199, 0.15);
+  border-color: rgba(63, 215, 199, 0.8);
+}
 
         :root{
           --accent:#3FD7C7;
