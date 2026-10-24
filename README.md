@@ -111,6 +111,10 @@ All constants are at the top of `backend/rescue.py`.
 `GET /region/geocode` · `GET /region/intel` · `GET /region/support` · `GET /region/event/{id}` ·
 `GET /region/scenario` · `GET /earthquakes/history` · `POST /predict` (login) · `POST /rescue/analyze` (experimental)
 
+## Timeline
+
+See [docs/PROJECT_TIMELINE.md](docs/PROJECT_TIMELINE.md) for the week-by-week history and the plan for the remaining work.
+
 ## Project layout
 
 - `backend/` FastAPI: `rescue.py` (planning engine), `incident.py` (field reports),
