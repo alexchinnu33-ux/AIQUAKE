@@ -12,6 +12,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set")
 
+# Hosted Postgres providers (Render, Heroku) use scheme variants that make
+# SQLAlchemy pick a driver we do not install; force the psycopg2 driver.
+for _prefix in ("postgres://", "postgresql://", "postgresql+psycopg://"):
+    if DATABASE_URL.startswith(_prefix):
+        DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len(_prefix):]
+        break
+
 engine = create_engine(
     DATABASE_URL
 )
