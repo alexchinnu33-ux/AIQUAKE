@@ -1,4 +1,5 @@
 import os
+import os
 import tempfile
 
 from pathlib import Path
@@ -52,8 +53,11 @@ app.add_middleware(
 
     allow_origins=[
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        *[o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
     ],
+
+    allow_origin_regex=r"https://.*\.vercel\.app",
 
     allow_credentials=True,
 

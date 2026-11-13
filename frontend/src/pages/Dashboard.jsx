@@ -1,11 +1,12 @@
 
 import NavigationBar from "./NavigationBar";
+import Loader from "../components/Loader";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Model2Analysis from "./Model2Analysis";
 import RealIncidentData from "./RealIncidentData";
 
-const API_URL = "http://127.0.0.1:8000";
+import { API_URL } from "../config";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -917,7 +918,7 @@ function Dashboard() {
             }
           >
             {loading ? (
-              "ANALYZING FIELD IMAGE…"
+              <><Loader size={18} /> ANALYZING FIELD IMAGE…</>
             ) : (
               <>
                 RUN DAMAGE ASSESSMENT
@@ -1027,7 +1028,7 @@ function Dashboard() {
             {historyLoading ? (
 
               <div className="history-empty">
-                SYNCHRONIZING OPERATIONS LOG…
+                <Loader label="Synchronizing operations log…" />
               </div>
 
             ) : filteredHistory.length === 0 ? (
